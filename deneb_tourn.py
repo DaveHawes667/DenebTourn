@@ -1,8 +1,8 @@
 import json
 import math
 
-#players = ["A","B","C","D","E","F"]
-players = ["A","B","C"]
+players = ["A","B","C","D","E","F"]
+#players = ["A","B","C"]
 
 numPlayers = len(players)
 evenPlayers = numPlayers % 2 == 0
@@ -28,7 +28,7 @@ def TestRun(players,actualRounds):
 def ConstructInitialRound():
 	initialRound = set([])
 	i=0
-	while i < pairsPerRound:
+	while len(initialRound) < pairsPerRound:
 		pair = frozenset([players[i],players[i+1]])
 		initialRound.add(pair)
 		i+=2
@@ -50,7 +50,11 @@ def GenerateNextRound(players, actualRounds):
 
 def PairInPreviousRound(prevRounds, pair):
 	for round in prevRounds:
-		if len(round.intersection(pair)) > 0:
+		printdbg(round,6)
+		printdbg(pair,6)
+		#printdbg("intersection",6)
+		#printdbg(round.intersection(frozenset([pair])),6)
+		if len(round.intersection(frozenset([pair]))) > 0:
 			return True
 	return False
 
@@ -65,6 +69,7 @@ def FindAllPossiblePairingsForRound(players, actualRounds):
 				if not PairInPreviousRound(actualRounds,potentialPair): #Don't repeat previous match-ups
 					allPairs[potentialPair] = potentialPair
 
+	printdbg("All Possible Pairs - ",5)
 	for v in allPairs.values():
 		printdbg(v,5)
 	
@@ -74,7 +79,13 @@ def FindPotentialRounds(allPairs):
 	potentialRounds = []
 
 	def AlreadyPaired(potentialRound, newPair):
+		printdbg("potential round",5)
+		printdbg(potentialRound,5)
 		for pair in potentialRound:
+			printdbg("pair from round",5)
+			printdbg(pair,5)
+			printdbg("pair to consider",5)
+			printdbg(newPair,5)
 			venn = pair.intersection(newPair)
 			if len(venn) > 0:
 				return True
@@ -100,7 +111,9 @@ def FindPotentialRounds(allPairs):
 		unexploredPairs.remove(initialPair)
 		for candidate in unexploredPairs:
 			if len(potentialRound) < pairsPerRound:
-				if not AlreadyPaired(candidate,potentialRound):
+				printdbg("Candidate...",5)
+				printdbg(candidate,5)
+				if not AlreadyPaired(potentialRound,candidate):
 					potentialRound.add(candidate)
 		
 		missingPlayers = PlayersMissed(potentialRound)
