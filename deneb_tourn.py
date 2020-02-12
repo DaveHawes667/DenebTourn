@@ -15,15 +15,15 @@ def TestRun(players,actualRounds):
 	initialRound = ConstructInitialRound()
 	printdbg("Initial Round",1)
 	printdbg(initialRound,1)
-	actualRounds.append(frozenset(initialRound))
+	actualRounds.append(initialRound)
 	nxtRound = GenerateNextRound(players,actualRounds)
 	printdbg("2nd Round",1)
 	printdbg(nxtRound,1)
-	actualRounds.append(frozenset(nxtRound))
+	actualRounds.append(nxtRound)
 	nxtRound = GenerateNextRound(players,actualRounds)
 	printdbg("3rd Round",1)
 	printdbg(nxtRound,1)
-	actualRounds.append(frozenset(nxtRound))
+	actualRounds.append(nxtRound)
 
 def ConstructInitialRound():
 	initialRound = set([])
@@ -36,11 +36,38 @@ def ConstructInitialRound():
 	if not evenPlayers:
 		initialRound.add(frozenset([players[numPlayers-1],"__BYE__"]))
 
-	return initialRound
+	return frozenset(initialRound)
+
+def FindByePlayers(round):
+	byePlayers = []
+	for pair in round:
+		for side in pair:
+			if side == "__BYE__":
+				byePlayers.append(pair - frozenset("__BYE__"))
+	
+	return byePlayers
+
+def EliminateSecondByes(potentialRounds, actualRounds):
+	toEliminate = set([])
+	
+	for potential in potentialRounds:
+		for actual in actualRounds:
+			actualByes = set(FindByePlayers(actual))
+			potentialByes = set(FindByePlayers(potential))
+
+			if len(actualByes.intersection(potentialByes)) > 0:
+				toEliminate.add(potential)
+				break
+
+
+			
+	return list(frozenset(potentialRounds) - frozenset(toEliminate))
+
 
 def GenerateNextRound(players, actualRounds):
 	allPairs = FindAllPossiblePairingsForRound(players,actualRounds)
 	possibleRounds = FindPotentialRounds(allPairs)
+	possibleRounds = EliminateSecondByes(possibleRounds,actualRounds)
 
 	for round in possibleRounds:
 		printdbg("Potential Round...",3)
@@ -121,7 +148,7 @@ def FindPotentialRounds(allPairs):
 		for missed in missingPlayers.values():
 			potentialRound.add(frozenset([missed,"__BYE__"]))
 
-
+		potentialRound = frozenset(potentialRound)
 		if not potentialRound in actualRounds:
 			potentialRounds.append(potentialRound)
 	
