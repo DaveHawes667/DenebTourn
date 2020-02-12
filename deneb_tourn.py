@@ -1,5 +1,19 @@
 import json
 import math
+import random
+
+from enum import Enum
+
+POINTS_FOR_WIN = 3
+POINTS_FOR_LOSE = 1
+POINTS_FOR_TIMEOUT = 0
+POINTS_FOR_BYE = POINTS_FOR_WIN
+
+class ResultType(Enum):
+	WIN = POINTS_FOR_WIN
+	LOSE = POINTS_FOR_LOSE
+	TIMEOUT = POINTS_FOR_TIMEOUT
+	BYE = POINTS_FOR_BYE
 
 players = ["A","B","C","D","E","F"]
 #players = ["A","B","C"]
@@ -8,24 +22,74 @@ numPlayers = len(players)
 evenPlayers = numPlayers % 2 == 0
 pairsPerRound = math.floor(numPlayers / 2)
 actualRounds = []
+scoreRecord = []
 dbg = True
 debuglevel = 1
 
+#NEED TO FIX WHY BYES ARE GETTING RECORDED AS RESULTS!!!!
+def GenerateTestRoundResult(roundPairs, scoreRecordRound):
+	byePlayers = FindByePlayers(roundPairs)
+	for pair in roundPairs:		
+		bReportedResult = False
+		for side in pair:
+			if side == "__BYE__" or side in byePlayers:
+				if side in byePlayers:
+					ReportResult(side,ResultType.BYE,0,scoreRecordRound)
+					bReportedResult = True
+		
+		if not bReportedResult:
+			result = random.choice(list(ResultType))
+			if result == ResultType.BYE:
+				result = ResultType.WIN
+			sides = list(pair)
+			if result == ResultType.LOSE:
+				ReportResult(sides[0],result,random.randrange(-5,0),scoreRecordRound)
+				ReportResult(sides[1],ResultType.WIN,random.randrange(0,5),scoreRecordRound)
+			elif result == ResultType.WIN:
+				ReportResult(sides[0],result,random.randrange(0,5),scoreRecordRound)
+				ReportResult(sides[1],ResultType.LOSE,random.randrange(-5,0),scoreRecordRound)
+			elif result == ResultType.TIMEOUT:
+				ReportResult(sides[0],result,0,scoreRecordRound)
+				ReportResult(sides[1],result,0,scoreRecordRound)
+			else:
+				print("ERROR: Invalid random result type")
+			
+
 def TestRun(players,actualRounds):
-	initialRound = ConstructInitialRound()
+	#Round 1
+	initialRound = ConstructInitialRound(players)
 	printdbg("Initial Round",1)
 	printdbg(initialRound,1)
 	actualRounds.append(initialRound)
+	scoreRecordRound = {}
+	GenerateTestRoundResult(initialRound,scoreRecordRound)
+	scoreRecord.append(scoreRecordRound)
+	printdbg("Standings:",1)
+	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
+
+	#Round 2
 	nxtRound = GenerateNextRound(players,actualRounds)
 	printdbg("2nd Round",1)
 	printdbg(nxtRound,1)
 	actualRounds.append(nxtRound)
+	scoreRecordRound = {}
+	GenerateTestRoundResult(nxtRound,scoreRecordRound)
+	scoreRecord.append(scoreRecordRound)
+	printdbg("Standings:",1)
+	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
+
+	#Round 3
 	nxtRound = GenerateNextRound(players,actualRounds)
 	printdbg("3rd Round",1)
 	printdbg(nxtRound,1)
 	actualRounds.append(nxtRound)
+	scoreRecordRound = {}
+	GenerateTestRoundResult(nxtRound,scoreRecordRound)
+	scoreRecord.append(scoreRecordRound)
+	printdbg("Standings:",1)
+	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
 
-def ConstructInitialRound():
+def ConstructInitialRound(players):
 	initialRound = set([])
 	i=0
 	while len(initialRound) < pairsPerRound:
@@ -37,6 +101,17 @@ def ConstructInitialRound():
 		initialRound.add(frozenset([players[numPlayers-1],"__BYE__"]))
 
 	return frozenset(initialRound)
+
+def ReportResult(playerId, resultType, vpDiff, scoreRecordRound):
+	if playerId in scoreRecordRound:
+		print("ERROR: Reporting players result twice for the same round?")
+	else:
+		scoreRecordRound[playerId] = {
+			"points": resultType.value,
+			"vpDiff": vpDiff,
+		}
+
+
 
 def FindByePlayers(round):
 	byePlayers = []
