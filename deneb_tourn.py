@@ -26,7 +26,6 @@ scoreRecord = []
 dbg = True
 debuglevel = 1
 
-#NEED TO FIX WHY BYES ARE GETTING RECORDED AS RESULTS!!!!
 def GenerateTestRoundResult(roundPairs, scoreRecordRound):
 	byePlayers = FindByePlayers(roundPairs)
 	for pair in roundPairs:		
@@ -35,7 +34,7 @@ def GenerateTestRoundResult(roundPairs, scoreRecordRound):
 			if side == "__BYE__" or side in byePlayers:
 				if side in byePlayers:
 					ReportResult(side,ResultType.BYE,0,scoreRecordRound)
-					bReportedResult = True
+				bReportedResult = True
 		
 		if not bReportedResult:
 			result = random.choice(list(ResultType))
@@ -64,7 +63,7 @@ def TestRun(players,actualRounds):
 	scoreRecordRound = {}
 	GenerateTestRoundResult(initialRound,scoreRecordRound)
 	scoreRecord.append(scoreRecordRound)
-	printdbg("Standings:",1)
+	printdbg("Recorded Results So Far:",1)
 	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
 
 	#Round 2
@@ -75,7 +74,7 @@ def TestRun(players,actualRounds):
 	scoreRecordRound = {}
 	GenerateTestRoundResult(nxtRound,scoreRecordRound)
 	scoreRecord.append(scoreRecordRound)
-	printdbg("Standings:",1)
+	printdbg("Recorded Results So Far:",1)
 	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
 
 	#Round 3
@@ -86,7 +85,7 @@ def TestRun(players,actualRounds):
 	scoreRecordRound = {}
 	GenerateTestRoundResult(nxtRound,scoreRecordRound)
 	scoreRecord.append(scoreRecordRound)
-	printdbg("Standings:",1)
+	printdbg("Recorded Results So Far:",1)
 	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
 
 def ConstructInitialRound(players):
