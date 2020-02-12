@@ -15,6 +15,11 @@ class ResultType(Enum):
 	TIMEOUT = POINTS_FOR_TIMEOUT
 	BYE = POINTS_FOR_BYE
 
+VP_DIFF_SCALE = 10.0
+TP_DIFF_POWER = 2
+BYE_PAIR_EFFECTIVE_SKILL_DISP = 10
+
+TEST_ROUNDS = 3
 players = ["A","B","C","D","E","F"]
 #players = ["A","B","C"]
 
@@ -54,39 +59,29 @@ def GenerateTestRoundResult(roundPairs, scoreRecordRound):
 				print("ERROR: Invalid random result type")
 			
 
-def TestRun(players,actualRounds):
+def TestRun(players,actualRounds):	
 	#Round 1
 	initialRound = ConstructInitialRound(players)
-	printdbg("Initial Round",1)
+	printdbg("Round: 1",1)
 	printdbg(initialRound,1)
 	actualRounds.append(initialRound)
 	scoreRecordRound = {}
 	GenerateTestRoundResult(initialRound,scoreRecordRound)
 	scoreRecord.append(scoreRecordRound)
-	printdbg("Recorded Results So Far:",1)
-	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
+	printdbg("Recorded Results So Far:",5)
+	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),5)
 
-	#Round 2
-	nxtRound = GenerateNextRound(players,actualRounds)
-	printdbg("2nd Round",1)
-	printdbg(nxtRound,1)
-	actualRounds.append(nxtRound)
-	scoreRecordRound = {}
-	GenerateTestRoundResult(nxtRound,scoreRecordRound)
-	scoreRecord.append(scoreRecordRound)
-	printdbg("Recorded Results So Far:",1)
-	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
-
-	#Round 3
-	nxtRound = GenerateNextRound(players,actualRounds)
-	printdbg("3rd Round",1)
-	printdbg(nxtRound,1)
-	actualRounds.append(nxtRound)
-	scoreRecordRound = {}
-	GenerateTestRoundResult(nxtRound,scoreRecordRound)
-	scoreRecord.append(scoreRecordRound)
-	printdbg("Recorded Results So Far:",1)
-	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),1)
+	#2+ rounds
+	for i in range(1,TEST_ROUNDS):
+		nxtRound = GenerateNextRound(players,actualRounds,scoreRecord)
+		printdbg("Round: "+str(i),1)
+		printdbg(nxtRound,1)
+		actualRounds.append(nxtRound)
+		scoreRecordRound = {}
+		GenerateTestRoundResult(nxtRound,scoreRecordRound)
+		scoreRecord.append(scoreRecordRound)
+		printdbg("Recorded Results So Far:",5)
+		printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),5)	
 
 def ConstructInitialRound(players):
 	initialRound = set([])
@@ -100,6 +95,63 @@ def ConstructInitialRound(players):
 		initialRound.add(frozenset([players[numPlayers-1],"__BYE__"]))
 
 	return frozenset(initialRound)
+
+def IsPairABye(pair):
+	for side in pair:
+		if side == "__BYE__":
+			return True
+
+	return False
+
+def CalcPairSkillDisparity(pair, scoreRecord):
+	pairList = list(pair)	
+	playerA = {"points":0, "vpDiff":0, "id":pairList[0]}
+	playerB = playerA.copy()
+	playerB["id"] = pairList[1]
+	playerData = [playerA,playerB]
+	
+	#total up scores
+	for pd in playerData:
+		for scoreRecordRound in scoreRecord:
+			if pd["id"] in scoreRecordRound:
+				pd["points"]+=scoreRecordRound[pd["id"]]["points"]
+				pd["vpDiff"]+=scoreRecordRound[pd["id"]]["vpDiff"]
+	
+	tournamentPointDiff = playerA["points"] - playerB["points"]
+	tournamentVpDiff = playerA["vpDiff"] - playerB["vpDiff"]
+
+	if tournamentPointDiff == 0:
+		return tournamentVpDiff/VP_DIFF_SCALE
+	else:
+		return math.pow(tournamentPointDiff,TP_DIFF_POWER)
+
+def CalcTotalPairSkillDisparity(round, cachePairSkillDisp):
+	printdbg(cachePairSkillDisp,4)
+	totalPairSkillDisp = 0
+	for pair in round:
+		totalPairSkillDisp+=cachePairSkillDisp[pair]
+	return totalPairSkillDisp
+
+def CalcMaximumPairSkillDisparity(round, scoreRecord, cachePairSkillDisp):
+	skillDisp = []
+	for pair in round:
+		if not IsPairABye(pair):
+			pairSkillDisp = 0
+			if pair in cachePairSkillDisp:
+				pairSkillDisp = cachePairSkillDisp[pair]
+			else:
+				pairSkillDisp = CalcPairSkillDisparity(pair,scoreRecord)
+				cachePairSkillDisp[pair] = pairSkillDisp
+
+			skillDisp.append(pairSkillDisp)
+		else:
+			cachePairSkillDisp[pair] = BYE_PAIR_EFFECTIVE_SKILL_DISP
+	
+	if len(skillDisp) > 0:
+		return max(skillDisp)
+	else:
+		return float("inf")
+
 
 def ReportResult(playerId, resultType, vpDiff, scoreRecordRound):
 	if playerId in scoreRecordRound:
@@ -138,16 +190,45 @@ def EliminateSecondByes(potentialRounds, actualRounds):
 	return list(frozenset(potentialRounds) - frozenset(toEliminate))
 
 
-def GenerateNextRound(players, actualRounds):
+def GenerateNextRound(players, actualRounds, scoreRecord):
 	allPairs = FindAllPossiblePairingsForRound(players,actualRounds)
 	possibleRounds = FindPotentialRounds(allPairs)
 	possibleRounds = EliminateSecondByes(possibleRounds,actualRounds)
 
 	for round in possibleRounds:
-		printdbg("Potential Round...",3)
-		printdbg(round,3)
+			printdbg("Potential Round...",3)
+			printdbg(round,3)
+
+	maxPairSkillDisp = {}
+	cachePairSkillDispByPair = {}
+	for round in possibleRounds:		
+		maxPairSkillDisp[round] = CalcMaximumPairSkillDisparity(round,scoreRecord,cachePairSkillDispByPair)
 	
-	return possibleRounds[0]
+	roundWithMinSkillDispPair = min(maxPairSkillDisp, key=maxPairSkillDisp.get)
+	smallestMaxPairSkillDisp = math.ceil(maxPairSkillDisp[roundWithMinSkillDispPair])
+	
+	printdbg("smallestMaxPairSkillDisp",3)
+	printdbg(smallestMaxPairSkillDisp,3)
+
+	if smallestMaxPairSkillDisp > 0.0 and smallestMaxPairSkillDisp < float("inf"):
+		smallestMaxPairRounds = []
+
+		for round, maxPairDisp in maxPairSkillDisp.items():
+			if maxPairDisp <= smallestMaxPairSkillDisp:
+				smallestMaxPairRounds.append(round)
+		
+
+		smallestMaxPairRounds.sort(key = lambda round: CalcTotalPairSkillDisparity(round,cachePairSkillDispByPair))
+
+		for round in smallestMaxPairRounds:
+			printdbg("Small Max Pair Rounds...",3)
+			printdbg(round,3)
+
+		return smallestMaxPairRounds[0]	
+
+	print("ERROR: COULD NOT GENERATE A NEW ROUND!!!")
+	return None
+		
 
 def PairInPreviousRound(prevRounds, pair):
 	for round in prevRounds:
