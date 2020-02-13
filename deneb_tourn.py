@@ -3,6 +3,7 @@ import math
 import random
 
 from enum import Enum
+from tabulate import tabulate
 
 POINTS_FOR_WIN = 3
 POINTS_FOR_LOSE = 1
@@ -17,10 +18,10 @@ class ResultType(Enum):
 
 VP_DIFF_SCALE = 10.0
 TP_DIFF_POWER = 2
-BYE_PAIR_EFFECTIVE_SKILL_DISP = 10
+BYE_PAIR_EFFECTIVE_SKILL_DISP = 100
 
 TEST_ROUNDS = 3
-players = ["A","B","C","D","E","F"]
+players = ["A","B","C","D","E","F","G","H"]
 #players = ["A","B","C"]
 
 numPlayers = len(players)
@@ -31,35 +32,55 @@ scoreRecord = []
 dbg = True
 debuglevel = 1
 
-def GenerateTestRoundResult(roundPairs, scoreRecordRound):
-	byePlayers = FindByePlayers(roundPairs)
+def GenerateTestRoundResult(roundPairs, scoreRecordRound):	
 	for pair in roundPairs:		
 		bReportedResult = False
-		for side in pair:
-			if side == "__BYE__" or side in byePlayers:
-				if side in byePlayers:
+		if IsPairABye(pair):
+			for side in pair:
+				if side != "__BYE__":
 					ReportResult(side,ResultType.BYE,0,scoreRecordRound)
-				bReportedResult = True
+					bReportedResult = True
 		
 		if not bReportedResult:
 			result = random.choice(list(ResultType))
 			if result == ResultType.BYE:
 				result = ResultType.WIN
-			sides = list(pair)
-			if result == ResultType.LOSE:
-				ReportResult(sides[0],result,random.randrange(-5,0),scoreRecordRound)
-				ReportResult(sides[1],ResultType.WIN,random.randrange(0,5),scoreRecordRound)
-			elif result == ResultType.WIN:
-				ReportResult(sides[0],result,random.randrange(0,5),scoreRecordRound)
-				ReportResult(sides[1],ResultType.LOSE,random.randrange(-5,0),scoreRecordRound)
+			sides = list(pair)				
+			if result == ResultType.WIN or result == ResultType.LOSE:
+				winnerScore = random.randrange(0,5)
+				if winnerScore == 0:
+					loserScore = 0
+				else:
+					loserScore = random.randrange(0,winnerScore)
+				ReportResult(sides[0],ResultType.WIN,winnerScore-loserScore,scoreRecordRound)
+				ReportResult(sides[1],ResultType.LOSE,loserScore - winnerScore,scoreRecordRound)
 			elif result == ResultType.TIMEOUT:
 				ReportResult(sides[0],result,0,scoreRecordRound)
 				ReportResult(sides[1],result,0,scoreRecordRound)
 			else:
 				print("ERROR: Invalid random result type")
-			
 
-def TestRun(players,actualRounds):	
+def CalcStandings(scoreRecord, players):
+	standings = {player: {"PlayerId":player,"TP":0,"VPDiff":0} for player in players}
+	#print(standings)
+	for round in scoreRecord:
+		for player in players:
+			points = round[player]["points"]
+			VPDiff = round[player]["vpDiff"]
+			standings[player]["TP"]+= points
+			standings[player]["VPDiff"]+= VPDiff
+
+	standingsTable = []
+	for player,standing in standings.items():
+		standingsTable.append([player,standing["TP"],standing["VPDiff"]])
+
+	#print("Standings table " + str(standingsTable))
+	standingsTable.sort( key = lambda s: (s[1],s[2]) )
+	#print("Sorted Standings table " + str(standingsTable))
+	standingsTable.reverse()
+	return standingsTable
+
+def TestRun(players,actualRounds):
 	#Round 1
 	initialRound = ConstructInitialRound(players)
 	printdbg("Round: 1",1)
@@ -72,7 +93,12 @@ def TestRun(players,actualRounds):
 	printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),5)
 
 	#2+ rounds
-	for i in range(1,TEST_ROUNDS):
+	i=2
+	while i<=TEST_ROUNDS:
+		print("Standings before round " + str(i) + " begins")
+		standings = CalcStandings(scoreRecord,players)
+		#print(standings)
+		print(tabulate(standings,headers=["player","Tournament Points", "VP Diff"]))
 		nxtRound = GenerateNextRound(players,actualRounds,scoreRecord)
 		printdbg("Round: "+str(i),1)
 		printdbg(nxtRound,1)
@@ -82,6 +108,12 @@ def TestRun(players,actualRounds):
 		scoreRecord.append(scoreRecordRound)
 		printdbg("Recorded Results So Far:",5)
 		printdbg(json.dumps(scoreRecord, indent=4, sort_keys=True),5)	
+		i+=1
+
+	#Final standings
+	print("Final Standings")
+	standings = CalcStandings(scoreRecord,players)	
+	print(tabulate(standings,headers=["player","Tournament Points", "VP Diff"]))
 
 def ConstructInitialRound(players):
 	initialRound = set([])
@@ -206,11 +238,12 @@ def GenerateNextRound(players, actualRounds, scoreRecord):
 	
 	roundWithMinSkillDispPair = min(maxPairSkillDisp, key=maxPairSkillDisp.get)
 	smallestMaxPairSkillDisp = math.ceil(maxPairSkillDisp[roundWithMinSkillDispPair])
+	smallestMaxPairSkillDisp = max(1,smallestMaxPairSkillDisp)
 	
 	printdbg("smallestMaxPairSkillDisp",3)
 	printdbg(smallestMaxPairSkillDisp,3)
 
-	if smallestMaxPairSkillDisp > 0.0 and smallestMaxPairSkillDisp < float("inf"):
+	if smallestMaxPairSkillDisp < float("inf"):
 		smallestMaxPairRounds = []
 
 		for round, maxPairDisp in maxPairSkillDisp.items():
