@@ -21,39 +21,37 @@ class ResultType(Enum):
 VP_DIFF_SCALE = 10.0
 TP_DIFF_POWER = 2
 BYE_PAIR_EFFECTIVE_SKILL_DISP = 100
-NUM_TEST_PLAYERS = 10
-
+NUM_TEST_PLAYERS = 8
 TEST_ROUNDS = 3
-players = []
 #players = ["A","B","C","D","E","F","G","H"]
 #players = ["A","B","C"]
 
-numPlayers = 0
-evenPlayers = False
-pairsPerRound = 0
-actualRounds = []
-scoreRecord = []
 dbg = True
 debuglevel = 1
-playerInfo = {}
 
-def GenerateSomeTestPlayers(players,playerInfo, numPlayers):
+class TournamentInfo:
+	def __init__(self):
+		self.players = []
+		self.numPlayers = 0
+		self.evenPlayers = False
+		self.pairsPerRound = 0
+		self.actualRounds = []
+		self.scoreRecord = []
+		self.playerInfo = {}
+
+def GenerateSomeTestPlayers(players,playerInfo, numPlayers, tournamentInfo):
 	while numPlayers > 0:
-		RegisterPlayer(names.get_full_name(),players,playerInfo)
+		RegisterPlayer(names.get_full_name(),players,playerInfo,tournamentInfo)
 		numPlayers-=1
 
-def RegisterPlayer(name,players,playerInfo):
-	global numPlayers
-	global evenPlayers
-	global pairsPerRound
-
+def RegisterPlayer(name,players,playerInfo, tournInfo):
 	playerId = str(uuid.uuid4())
 	players.append(playerId)
 	playerInfo[playerId] = {"name":name}
 
-	numPlayers = len(players)
-	evenPlayers = numPlayers % 2 == 0
-	pairsPerRound = math.floor(numPlayers / 2)
+	tournInfo.numPlayers = len(players)
+	tournInfo.evenPlayers = tournInfo.numPlayers % 2 == 0
+	tournInfo.pairsPerRound = math.floor(tournInfo.numPlayers / 2)
 
 def GenerateTestRoundResult(roundPairs, scoreRecordRound):	
 	for pair in roundPairs:		
@@ -117,9 +115,12 @@ def GetVSStringForRound(round,playerInfo):
 	return roundStr
 
 
-def TestRun(players,actualRounds,playerInfo):	
+def TestRun(players,actualRounds,playerInfo,tournamentInfo):	
+
+	scoreRecord = tournamentInfo.scoreRecord
+
 	#Round 1
-	initialRound = ConstructInitialRound(players)
+	initialRound = ConstructInitialRound(players,tournamentInfo)
 	printdbg("***** Round: 1",1)
 	printdbg(GetVSStringForRound(initialRound,playerInfo),1)
 	actualRounds.append(initialRound)
@@ -132,10 +133,10 @@ def TestRun(players,actualRounds,playerInfo):
 	#2+ rounds
 	i=2
 	while i<=TEST_ROUNDS:
-		print("\nStandings before round " + str(i) + " begins\n")
+		print("\nStandings at the end of round " + str(i-1) + "\n")
 		standings = CalcStandings(scoreRecord,players,playerInfo)		
 		print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]))
-		nxtRound = GenerateNextRound(players,actualRounds,scoreRecord)
+		nxtRound = GenerateNextRound(players,actualRounds,scoreRecord,tournamentInfo)
 		printdbg("\n***** Round: "+str(i),1)
 		printdbg(GetVSStringForRound(nxtRound,playerInfo),1)
 		actualRounds.append(nxtRound)
@@ -151,20 +152,17 @@ def TestRun(players,actualRounds,playerInfo):
 	standings = CalcStandings(scoreRecord,players,playerInfo)		
 	print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]))
 
-def ConstructInitialRound(players):
-	global numPlayers
-	global evenPlayers
-	global pairsPerRound
+def ConstructInitialRound(players,tournamentInfo):
 
 	initialRound = set([])
 	i=0
-	while len(initialRound) < pairsPerRound:
+	while len(initialRound) < tournamentInfo.pairsPerRound:
 		pair = frozenset([players[i],players[i+1]])
 		initialRound.add(pair)
 		i+=2
 	
-	if not evenPlayers:
-		initialRound.add(frozenset([players[numPlayers-1],"__BYE__"]))
+	if not tournamentInfo.evenPlayers:
+		initialRound.add(frozenset([players[tournamentInfo.numPlayers-1],"__BYE__"]))
 
 	return frozenset(initialRound)
 
@@ -262,9 +260,9 @@ def EliminateSecondByes(potentialRounds, actualRounds):
 	return list(frozenset(potentialRounds) - frozenset(toEliminate))
 
 
-def GenerateNextRound(players, actualRounds, scoreRecord):
+def GenerateNextRound(players, actualRounds, scoreRecord,tournamentInfo):
 	allPairs = FindAllPossiblePairingsForRound(players,actualRounds)
-	possibleRounds = FindPotentialRounds(allPairs)
+	possibleRounds = FindPotentialRounds(allPairs,tournamentInfo)
 	possibleRounds = EliminateSecondByes(possibleRounds,actualRounds)
 
 	for round in possibleRounds:
@@ -330,9 +328,7 @@ def FindAllPossiblePairingsForRound(players, actualRounds):
 	
 	return list(allPairs.values())
 
-def FindPotentialRounds(allPairs):
-	global pairsPerRound
-
+def FindPotentialRounds(allPairs, tournamentInfo):
 	potentialRounds = []
 
 	def AlreadyPaired(potentialRound, newPair):
@@ -348,9 +344,9 @@ def FindPotentialRounds(allPairs):
 				return True
 		return False
 
-	def PlayersMissed(potentialRound):
+	def PlayersMissed(potentialRound,tournamentInfo):
 		playersToFind = {}
-		for player in players:
+		for player in tournamentInfo.players:
 			playersToFind[player] = player
 
 		for pair in potentialRound:
@@ -367,19 +363,19 @@ def FindPotentialRounds(allPairs):
 		potentialRound.add(initialPair)
 		unexploredPairs.remove(initialPair)
 		for candidate in unexploredPairs:
-			if len(potentialRound) < pairsPerRound:
+			if len(potentialRound) < tournamentInfo.pairsPerRound:
 				printdbg("Candidate...",5)
 				printdbg(candidate,5)
 				if not AlreadyPaired(potentialRound,candidate):
 					potentialRound.add(candidate)
 		
-		missingPlayers = PlayersMissed(potentialRound)
+		missingPlayers = PlayersMissed(potentialRound,tournamentInfo)
 
 		for missed in missingPlayers.values():
 			potentialRound.add(frozenset([missed,"__BYE__"]))
 
 		potentialRound = frozenset(potentialRound)
-		if not potentialRound in actualRounds:
+		if not potentialRound in tournamentInfo.actualRounds:
 			potentialRounds.append(potentialRound)
 	
 	return potentialRounds
@@ -388,7 +384,20 @@ def printdbg( msg, level=1 ):
 	if dbg == True and level <= debuglevel:
 		print(msg)
 
-GenerateSomeTestPlayers(players,playerInfo,NUM_TEST_PLAYERS)
-#print(players)
-TestRun(players,actualRounds, playerInfo)
+#UI bit
+from kivy.app import App
+from kivy.uix.button import Button
 
+def callback(instance):
+	tournamentInfo = TournamentInfo()
+	print('The button <%s> is being pressed' % instance.text)
+	GenerateSomeTestPlayers(tournamentInfo.players,tournamentInfo.playerInfo,NUM_TEST_PLAYERS,tournamentInfo)
+	TestRun(tournamentInfo.players,tournamentInfo.actualRounds, tournamentInfo.playerInfo,tournamentInfo)
+
+class TournApp(App):
+	def build(self):
+		btn1 = Button(text='Run Tests')
+		btn1.bind(on_press=callback)
+		return btn1
+
+TournApp().run()
