@@ -1,6 +1,8 @@
 import json
 import math
 import random
+import uuid
+import names
 
 from enum import Enum
 from tabulate import tabulate
@@ -19,18 +21,39 @@ class ResultType(Enum):
 VP_DIFF_SCALE = 10.0
 TP_DIFF_POWER = 2
 BYE_PAIR_EFFECTIVE_SKILL_DISP = 100
+NUM_TEST_PLAYERS = 10
 
 TEST_ROUNDS = 3
-players = ["A","B","C","D","E","F","G","H"]
+players = []
+#players = ["A","B","C","D","E","F","G","H"]
 #players = ["A","B","C"]
 
-numPlayers = len(players)
-evenPlayers = numPlayers % 2 == 0
-pairsPerRound = math.floor(numPlayers / 2)
+numPlayers = 0
+evenPlayers = False
+pairsPerRound = 0
 actualRounds = []
 scoreRecord = []
 dbg = True
 debuglevel = 1
+playerInfo = {}
+
+def GenerateSomeTestPlayers(players,playerInfo, numPlayers):
+	while numPlayers > 0:
+		RegisterPlayer(names.get_full_name(),players,playerInfo)
+		numPlayers-=1
+
+def RegisterPlayer(name,players,playerInfo):
+	global numPlayers
+	global evenPlayers
+	global pairsPerRound
+
+	playerId = str(uuid.uuid4())
+	players.append(playerId)
+	playerInfo[playerId] = {"name":name}
+
+	numPlayers = len(players)
+	evenPlayers = numPlayers % 2 == 0
+	pairsPerRound = math.floor(numPlayers / 2)
 
 def GenerateTestRoundResult(roundPairs, scoreRecordRound):	
 	for pair in roundPairs:		
@@ -60,7 +83,7 @@ def GenerateTestRoundResult(roundPairs, scoreRecordRound):
 			else:
 				print("ERROR: Invalid random result type")
 
-def CalcStandings(scoreRecord, players):
+def CalcStandings(scoreRecord, players, playerInfo):
 	standings = {player: {"PlayerId":player,"TP":0,"VPDiff":0} for player in players}
 	#print(standings)
 	for round in scoreRecord:
@@ -72,19 +95,33 @@ def CalcStandings(scoreRecord, players):
 
 	standingsTable = []
 	for player,standing in standings.items():
-		standingsTable.append([player,standing["TP"],standing["VPDiff"]])
+		standingsTable.append([player[:4]+"...",playerInfo[player]["name"],standing["TP"],standing["VPDiff"]])
 
 	#print("Standings table " + str(standingsTable))
-	standingsTable.sort( key = lambda s: (s[1],s[2]) )
+	standingsTable.sort( key = lambda s: (s[2],s[3]) )
 	#print("Sorted Standings table " + str(standingsTable))
 	standingsTable.reverse()
 	return standingsTable
 
-def TestRun(players,actualRounds):
+def GetVSStringForRound(round,playerInfo):
+	roundStr = ""
+	for pair in round:
+		if IsPairABye(pair):
+			for side in pair:
+				if side != "__BYE__":
+					roundStr+="\n"+playerInfo[side]["name"]+" got a bye this round."
+		else:
+			sideList = list(pair)
+			roundStr+="\n"+playerInfo[sideList[0]]["name"] + " Vs. " + playerInfo[sideList[1]]["name"]
+
+	return roundStr
+
+
+def TestRun(players,actualRounds,playerInfo):	
 	#Round 1
 	initialRound = ConstructInitialRound(players)
-	printdbg("Round: 1",1)
-	printdbg(initialRound,1)
+	printdbg("***** Round: 1",1)
+	printdbg(GetVSStringForRound(initialRound,playerInfo),1)
 	actualRounds.append(initialRound)
 	scoreRecordRound = {}
 	GenerateTestRoundResult(initialRound,scoreRecordRound)
@@ -95,13 +132,12 @@ def TestRun(players,actualRounds):
 	#2+ rounds
 	i=2
 	while i<=TEST_ROUNDS:
-		print("Standings before round " + str(i) + " begins")
-		standings = CalcStandings(scoreRecord,players)
-		#print(standings)
-		print(tabulate(standings,headers=["player","Tournament Points", "VP Diff"]))
+		print("\nStandings before round " + str(i) + " begins\n")
+		standings = CalcStandings(scoreRecord,players,playerInfo)		
+		print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]))
 		nxtRound = GenerateNextRound(players,actualRounds,scoreRecord)
-		printdbg("Round: "+str(i),1)
-		printdbg(nxtRound,1)
+		printdbg("\n***** Round: "+str(i),1)
+		printdbg(GetVSStringForRound(nxtRound,playerInfo),1)
 		actualRounds.append(nxtRound)
 		scoreRecordRound = {}
 		GenerateTestRoundResult(nxtRound,scoreRecordRound)
@@ -111,11 +147,15 @@ def TestRun(players,actualRounds):
 		i+=1
 
 	#Final standings
-	print("Final Standings")
-	standings = CalcStandings(scoreRecord,players)	
-	print(tabulate(standings,headers=["player","Tournament Points", "VP Diff"]))
+	print("\n----------Final Standings----------\n")
+	standings = CalcStandings(scoreRecord,players,playerInfo)		
+	print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]))
 
 def ConstructInitialRound(players):
+	global numPlayers
+	global evenPlayers
+	global pairsPerRound
+
 	initialRound = set([])
 	i=0
 	while len(initialRound) < pairsPerRound:
@@ -291,6 +331,8 @@ def FindAllPossiblePairingsForRound(players, actualRounds):
 	return list(allPairs.values())
 
 def FindPotentialRounds(allPairs):
+	global pairsPerRound
+
 	potentialRounds = []
 
 	def AlreadyPaired(potentialRound, newPair):
@@ -346,6 +388,7 @@ def printdbg( msg, level=1 ):
 	if dbg == True and level <= debuglevel:
 		print(msg)
 
-			
-TestRun(players,actualRounds)
+GenerateSomeTestPlayers(players,playerInfo,NUM_TEST_PLAYERS)
+#print(players)
+TestRun(players,actualRounds, playerInfo)
 
