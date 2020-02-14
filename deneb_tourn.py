@@ -33,6 +33,9 @@ class TournamentInfo:
 		self.scoreRecord = []
 		self.playerInfo = {}
 
+	def GetPlayerName(self, playerId):
+		return self.playerInfo[playerId]["name"]
+
 	def RegisterPlayer(self,name):
 		playerId = str(uuid.uuid4())
 		self.players.append(playerId)
@@ -86,18 +89,27 @@ class TournamentInfo:
 
 		return False
 
-	def GetVSStringForRound(self,round):
-		roundStr = ""
+	def GetVSForRoundAsList(self, round):
+		roundList = {}
 		for pair in round:
 			if TournamentInfo.IsPairABye(pair):
 				for side in pair:
 					if side != "__BYE__":
-						roundStr+="\n"+self.playerInfo[side]["name"]+" got a bye this round."
+						roundList[pair]=self.playerInfo[side]["name"]+" got a bye this round."
 			else:
 				sideList = list(pair)
-				roundStr+="\n"+self.playerInfo[sideList[0]]["name"] + " Vs. " + self.playerInfo[sideList[1]]["name"]
+				roundList[pair] = self.playerInfo[sideList[0]]["name"] + " Vs. " + self.playerInfo[sideList[1]]["name"]
 
+		return roundList
+
+	def GetVSStringForRound(self,round):
+		roundList = self.GetVSForRoundAsList(round)
+		roundStr = ""
+		for vs in roundList.values():
+			roundStr+="\n"+vs
+		
 		return roundStr
+		
 
 	def CalcMaximumPairSkillDisparity(self, round, cachePairSkillDisp):
 		skillDisp = []
@@ -128,8 +140,6 @@ class TournamentInfo:
 				"vpDiff": vpDiff,
 			}
 
-
-
 	def FindByePlayers(self,round):
 		byePlayers = []
 		for pair in round:
@@ -157,6 +167,9 @@ class TournamentInfo:
 
 
 	def GenerateNextRound(self):
+		if len(self.actualRounds) == 0:
+			return self.ConstructInitialRound()
+
 		allPairs = self.FindAllPossiblePairingsForRound()
 		possibleRounds = self.FindPotentialRounds(allPairs)
 		possibleRounds = self.EliminateSecondByes(possibleRounds)

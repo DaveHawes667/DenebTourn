@@ -46,7 +46,7 @@ def TestRun(players,actualRounds,playerInfo,tournamentInfo):
 	scoreRecord = tournamentInfo.scoreRecord
 
 	#Round 1
-	initialRound = tournamentInfo.ConstructInitialRound()
+	initialRound = tournamentInfo.GenerateNextRound()
 	printdbg("***** Round: 1",1)
 	printdbg(tournamentInfo.GetVSStringForRound(initialRound),1)
 	actualRounds.append(initialRound)
