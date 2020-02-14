@@ -38,6 +38,8 @@ class TournamentInfo:
 		self.players.append(playerId)
 		self.playerInfo[playerId] = {"name":name}
 
+		printdbg("Registered Player: " + name,1)
+
 		self.numPlayers = len(self.players)
 		self.evenPlayers = self.numPlayers % 2 == 0
 		self.pairsPerRound = math.floor(self.numPlayers / 2)
@@ -302,11 +304,6 @@ class TournamentInfo:
 				potentialRounds.append(potentialRound)
 		
 		return potentialRounds
-
-
-
-
-
 
 def printdbg( msg, level=1 ):
 	if dbg == True and level <= debuglevel:
