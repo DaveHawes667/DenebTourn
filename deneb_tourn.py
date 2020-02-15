@@ -10,10 +10,12 @@ POINTS_FOR_TIMEOUT = 0
 POINTS_FOR_BYE = POINTS_FOR_WIN
 
 class ResultType(Enum):
+	UNKNOWN_RESULT = -1
 	WIN = POINTS_FOR_WIN
 	LOSE = POINTS_FOR_LOSE
 	TIMEOUT = POINTS_FOR_TIMEOUT
 	BYE = POINTS_FOR_BYE
+	
 
 VP_DIFF_SCALE = 10.0
 TP_DIFF_POWER = 2
@@ -52,10 +54,11 @@ class TournamentInfo:
 		#print(standings)
 		for round in self.scoreRecord:
 			for player in self.players:
-				points = round[player]["points"]
-				VPDiff = round[player]["vpDiff"]
-				standings[player]["TP"]+= points
-				standings[player]["VPDiff"]+= VPDiff
+				if player in round:
+					points = round[player]["points"]
+					VPDiff = round[player]["vpDiff"]
+					standings[player]["TP"]+= points
+					standings[player]["VPDiff"]+= VPDiff
 
 		standingsTable = []
 		for player,standing in standings.items():
@@ -66,6 +69,20 @@ class TournamentInfo:
 		#print("Sorted Standings table " + str(standingsTable))
 		standingsTable.reverse()
 		return standingsTable
+
+	def CheckResult(self, pair, scoreRound):
+		bFoundResult = False
+
+		results = {side: {"PlayerId":side,"result":ResultType.UNKNOWN_RESULT.name,"vpDiff":0,"vp":0} for side in pair}
+		for side in pair:
+			if side in scoreRound:
+				bFoundResult = True
+				results[side]["result"] = scoreRound[side]["result"]
+				results[side]["vpDiff"] = scoreRound[side]["vpDiff"]
+				results[side]["vp"] = scoreRound[side]["vp"]
+		
+		return (bFoundResult,results)
+
 
 	def ConstructInitialRound(self):
 
@@ -131,13 +148,16 @@ class TournamentInfo:
 		else:
 			return float("inf")
 
-	def ReportResult(self, playerId, resultType, vpDiff, scoreRecordRound, allowOverride = False):
+	def ReportResult(self, playerId, resultType, vpDiff, vp, scoreRecordRound, allowOverride = False):
 		if playerId in scoreRecordRound and not allowOverride:
 			print("ERROR: Reporting players result twice for the same round?")
 		else:
+			printdbg("Reporting result for "+str(playerId),2)
 			scoreRecordRound[playerId] = {
+				"result": resultType.name,
 				"points": resultType.value,
 				"vpDiff": vpDiff,
+				"vp": vp
 			}
 
 	def FindByePlayers(self,round):
@@ -169,8 +189,11 @@ class TournamentInfo:
 		return self.scoreRecord[len(self.actualRounds)-1]
 
 	def GenerateNextRound(self):
+		scoreRecordRound = {}
+		self.scoreRecord.append(scoreRecordRound)
+
 		if len(self.actualRounds) == 0:
-			return self.ConstructInitialRound()
+			return (self.ConstructInitialRound(),scoreRecordRound)
 
 		allPairs = self.FindAllPossiblePairingsForRound()
 		possibleRounds = self.FindPotentialRounds(allPairs)
@@ -206,7 +229,7 @@ class TournamentInfo:
 				printdbg("Small Max Pair Rounds...",3)
 				printdbg(round,3)
 
-			return smallestMaxPairRounds[0]	
+			return (smallestMaxPairRounds[0],scoreRecordRound)
 
 		print("ERROR: COULD NOT GENERATE A NEW ROUND!!!")
 		return None

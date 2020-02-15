@@ -28,32 +28,39 @@ class IntegerInput(TextInput):
 			return super(IntegerInput, self).insert_text("", from_undo=from_undo)
 
 class ReportResultPopUp(GridLayout):
-	def __init__(self, tournament, pair, scoreRound, **kwargs):
+	def __init__(self, tournament, pair, scoreRound, results,  **kwargs):
 		super(ReportResultPopUp, self).__init__(**kwargs)
 		self.cols = 3
 		self.popup = None
 		self.add_widget(Label(text='Player'))
 		self.add_widget(Label(text='Result'))
-		self.add_widget(Label(text='VP'))
+		self.add_widget(Label(text='VP'))		
 		self.pair = pair
 		self.pairList = list(pair)
+
+		if results[self.pairList[0]]["result"] == ResultType.UNKNOWN_RESULT.name:
+			self.oldResults = {side: {"PlayerId":side,"result":ResultType.WIN.name,"vpDiff":0, "vp":0} for side in pair}
+		else:
+			self.oldResults = results
+			
+		
 		self.scoreRound = scoreRound
 		self.add_widget(Label(text=tournament.GetPlayerName(self.pairList[0])))
 		self.spinner = Spinner(
 			# default value shown
-			text=ResultType.WIN.name,
+			text=self.oldResults[self.pairList[0]]["result"],
 			# available values
 			values=(ResultType.LOSE.name,ResultType.WIN.name,ResultType.TIMEOUT.name),
 			)
 		self.spinner.bind(text=self.OnResultChange)
 		self.add_widget(self.spinner)
-		self.playerAVP = IntegerInput(multiline=False,text="0")
+		self.playerAVP = IntegerInput(multiline=False,text=str(self.oldResults[self.pairList[0]]["vp"]))
 		self.add_widget(self.playerAVP)
 
 		self.add_widget(Label(text=tournament.GetPlayerName(self.pairList[1])))
-		self.playerBResult = Label(text=ResultType.LOSE.name)
+		self.playerBResult = Label(text=self.GetResultType()[1].name)
 		self.add_widget(self.playerBResult)
-		self.playerBVP = IntegerInput(multiline=False,text="0")
+		self.playerBVP = IntegerInput(multiline=False,text=str(self.oldResults[self.pairList[1]]["vp"]))
 		self.add_widget(self.playerBVP)
 		
 		self.tournament = tournament
@@ -86,8 +93,8 @@ class ReportResultPopUp(GridLayout):
 		vpDiffA = vpa - vpb
 		vpDiffB = vpb - vpa
 
-		self.tournament.ReportResult(self.pairList[0],result[0],vpDiffA,self.scoreRound,True)
-		self.tournament.ReportResult(self.pairList[1],result[1],vpDiffB,self.scoreRound,True)
+		self.tournament.ReportResult(self.pairList[0],result[0],vpDiffA,vpa,self.scoreRound,True)
+		self.tournament.ReportResult(self.pairList[1],result[1],vpDiffB,vpb,self.scoreRound,True)
 		if self.popup != None:
 			self.popup.dismiss()
 
@@ -156,33 +163,51 @@ class RoundPanel(GridLayout):
 	def __init__(self,tournament, **kwargs):
 		super(RoundPanel, self).__init__(**kwargs)
 		self.tournament = tournament		
+		self.roundList = None
 	
-	def GenerateRound(self):
-		self.clear_widgets()
-		self.round = self.tournament.GenerateNextRound()
-		self.tournament.actualRounds.append(self.round)
-		self.tournament.scoreRecord.append({})
-		roundList = self.tournament.GetVSForRoundAsList(self.round)
-		self.rows = len(roundList)
+	def GenerateRound(self):		
+		self.round,self.scoreRound = self.tournament.GenerateNextRound()
+		self.tournament.actualRounds.append(self.round)		
+		self.roundList = self.tournament.GetVSForRoundAsList(self.round)
+		self.rows = len(self.roundList)
+		self.GenerateContent()
 
-		for pair,vs in roundList.items():
-			vsGrid = GridLayout(cols=2)
+	def GenerateContent(self):
+		self.clear_widgets()
+
+		for pair,vs in self.roundList.items():			
+			vsGrid = GridLayout(cols=3)
 			vsGrid.add_widget(Label(text = vs))
 			if TournamentInfo.IsPairABye(pair):
-				vsGrid.add_widget(Label(text = "Already Reported"))
+				vsGrid.add_widget(Label(text = "No report needed"))
+				vsGrid.add_widget(Label(text="N/A"))
 			else:
-				btn = Button(text = "Report Result")
+				bFoundResult, results = self.tournament.CheckResult(pair,self.scoreRound)
+				btn = Button(text = "Edit Result" if bFoundResult else "Report Result")				
 				btn.bind(on_press=self.ReportResult)
+				btn.results = results
 				btn.pair = pair
-				btn.scoreRound = self.tournament.GetActiveScoreRecordRound()
+				btn.scoreRound = self.scoreRound
 				vsGrid.add_widget(btn)
+
+				resultStr = "result TBC"
+				if bFoundResult:
+					resultStr = ""
+					for playerId,result in results.items():
+						playerName = self.tournament.GetPlayerName(playerId)
+						resultStr += playerName + " " + result["result"] + " VP Diff: " + str(result["vpDiff"]) + "\n"
+
+				vsGrid.add_widget(Label(text=resultStr))
+				
+
+
 			self.add_widget(vsGrid)
 
 	def RefreshReportedResults(self,instance):
-		pass
+		self.GenerateContent()
 
 	def ReportResult(self, instance):
-		popUpContent = ReportResultPopUp(self.tournament,instance.pair,instance.scoreRound)
+		popUpContent = ReportResultPopUp(self.tournament,instance.pair,instance.scoreRound, instance.results)
 		popup = Popup(title='Report Result', content=popUpContent, auto_dismiss=False)		
 		popUpContent.popup = popup
 		popup.bind(on_dismiss=self.RefreshReportedResults)
