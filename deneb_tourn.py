@@ -131,8 +131,8 @@ class TournamentInfo:
 		else:
 			return float("inf")
 
-	def ReportResult(self, playerId, resultType, vpDiff, scoreRecordRound):
-		if playerId in scoreRecordRound:
+	def ReportResult(self, playerId, resultType, vpDiff, scoreRecordRound, allowOverride = False):
+		if playerId in scoreRecordRound and not allowOverride:
 			print("ERROR: Reporting players result twice for the same round?")
 		else:
 			scoreRecordRound[playerId] = {
@@ -165,6 +165,8 @@ class TournamentInfo:
 				
 		return list(frozenset(potentialRounds) - frozenset(toEliminate))
 
+	def GetActiveScoreRecordRound(self):
+		return self.scoreRecord[len(self.actualRounds)-1]
 
 	def GenerateNextRound(self):
 		if len(self.actualRounds) == 0:
