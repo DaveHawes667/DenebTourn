@@ -49,6 +49,19 @@ class TournamentInfo:
 		self.evenPlayers = self.numPlayers % 2 == 0
 		self.pairsPerRound = math.floor(self.numPlayers / 2)
 
+	def UnreportedResultsForActiveRound(self):
+		scoreRound = self.GetActiveScoreRecordRound()
+		activeRound = self.GetActiveRound()
+		missingPairs = []
+		for pair in activeRound:
+			if not self.IsPairABye(pair):
+				bFoundResult,_=self.CheckResult(pair,scoreRound)
+				if not bFoundResult:
+					missingPairs.append(pair)
+		
+		return missingPairs
+
+
 	def CalcStandings(self):
 		standings = {player: {"PlayerId":player,"TP":0,"VPDiff":0} for player in self.players}
 		#print(standings)
@@ -187,6 +200,9 @@ class TournamentInfo:
 
 	def GetActiveScoreRecordRound(self):
 		return self.scoreRecord[len(self.actualRounds)-1]
+
+	def GetActiveRound(self):
+		return self.actualRounds[len(self.actualRounds)-1]
 
 	def GenerateNextRound(self):
 		scoreRecordRound = {}

@@ -10,6 +10,8 @@ from kivy.uix.spinner import Spinner
 
 from functools import partial
 
+from tabulate import tabulate
+
 from deneb_tourn import TournamentInfo, printdbg, ResultType
 import test
 
@@ -42,7 +44,6 @@ class ReportResultPopUp(GridLayout):
 			self.oldResults = {side: {"PlayerId":side,"result":ResultType.WIN.name,"vpDiff":0, "vp":0} for side in pair}
 		else:
 			self.oldResults = results
-			
 		
 		self.scoreRound = scoreRound
 		self.add_widget(Label(text=tournament.GetPlayerName(self.pairList[0])))
@@ -169,12 +170,10 @@ class RoundPanel(GridLayout):
 		self.round,self.scoreRound = self.tournament.GenerateNextRound()
 		self.tournament.actualRounds.append(self.round)		
 		self.roundList = self.tournament.GetVSForRoundAsList(self.round)
-		self.rows = len(self.roundList)
-		self.GenerateContent()
+		self.cols = 1
+		self.GenerateContent(False)
 
-	def GenerateContent(self):
-		self.clear_widgets()
-
+	def GenerateActiveRoundDisplay(self):
 		for pair,vs in self.roundList.items():			
 			vsGrid = GridLayout(cols=3)
 			vsGrid.add_widget(Label(text = vs))
@@ -198,13 +197,40 @@ class RoundPanel(GridLayout):
 						resultStr += playerName + " " + result["result"] + " VP Diff: " + str(result["vpDiff"]) + "\n"
 
 				vsGrid.add_widget(Label(text=resultStr))
-				
-
-
 			self.add_widget(vsGrid)
 
+		btn = Button(text = "Close Round")
+		btn.bind(on_press=self.CloseRound)		
+		self.add_widget(btn)
+
+	def GenerateStandingsDisplay(self):
+		standings = self.tournament.CalcStandings()
+
+		#vsGrid = GridLayout(cols=3)
+		#vsGrid.add_widget(Label(text = vs))
+
+		tabStr = tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"])
+		self.add_widget(Label(text=tabStr))
+
+	def GenerateContent(self, bShowStandings):		
+		self.clear_widgets()
+
+		if bShowStandings:
+			self.GenerateStandingsDisplay()
+		else:
+			self.GenerateActiveRoundDisplay()
+
+	def CloseRound(self,instance):
+		unreported = self.tournament.UnreportedResultsForActiveRound()
+		
+		if len(unreported)==0:
+			#none unreported so we can end the round
+			self.GenerateContent(True)
+		else: #some unreported so we need to pop-up and warn
+			pass
+
 	def RefreshReportedResults(self,instance):
-		self.GenerateContent()
+		self.GenerateContent(False)
 
 	def ReportResult(self, instance):
 		popUpContent = ReportResultPopUp(self.tournament,instance.pair,instance.scoreRound, instance.results)
