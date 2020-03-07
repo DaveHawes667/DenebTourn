@@ -10,7 +10,7 @@ from kivy.uix.spinner import Spinner
 
 from functools import partial
 
-from tabulate import tabulate
+
 
 from deneb_tourn import TournamentInfo, printdbg, ResultType
 import test
@@ -161,9 +161,10 @@ class PlayersPanel(GridLayout):
 		popup.open()
 
 class RoundPanel(GridLayout):
-	def __init__(self,tournament, **kwargs):
+	def __init__(self,tournament, tournamentPanel, **kwargs):
 		super(RoundPanel, self).__init__(**kwargs)
-		self.tournament = tournament		
+		self.tournament = tournament	
+		self.tournamentPanel = tournamentPanel	
 		self.roundList = None
 	
 	def GenerateRound(self):		
@@ -206,11 +207,18 @@ class RoundPanel(GridLayout):
 	def GenerateStandingsDisplay(self):
 		standings = self.tournament.CalcStandings()
 
-		#vsGrid = GridLayout(cols=3)
-		#vsGrid.add_widget(Label(text = vs))
+		headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]
+		vsGrid = GridLayout(cols=len(headers))
 
-		tabStr = tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"])
-		self.add_widget(Label(text=tabStr))
+		for header in headers:
+			vsGrid.add_widget(Label(text = header))
+
+		for player in standings:
+			for entry in player:
+				vsGrid.add_widget(Label(text = str(entry)))
+
+
+		self.add_widget(vsGrid)
 
 	def GenerateContent(self, bShowStandings):		
 		self.clear_widgets()
@@ -226,6 +234,7 @@ class RoundPanel(GridLayout):
 		if len(unreported)==0:
 			#none unreported so we can end the round
 			self.GenerateContent(True)
+			self.tournamentPanel.AddRoundPanel()
 		else: #some unreported so we need to pop-up and warn
 			pass
 
@@ -252,7 +261,7 @@ class TournamentPanelContent(GridLayout):
 		self.add_widget(self.tabPanel)
 	
 	def AddRoundPanel(self):
-		roundPanel = RoundPanel(self.tournament)
+		roundPanel = RoundPanel(self.tournament,self)
 		roundPanel.GenerateRound()
 		tp = TabbedPanelItem()
 		tp.text = "Round " + str(len(self.tournament.actualRounds))
