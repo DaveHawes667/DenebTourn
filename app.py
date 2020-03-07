@@ -29,6 +29,38 @@ class IntegerInput(TextInput):
 		except:
 			return super(IntegerInput, self).insert_text("", from_undo=from_undo)
 
+class IncompleteRoundPopUp(GridLayout):
+	def __init__(self, tournament, unreported, scoreRound,  **kwargs):
+		super(IncompleteRoundPopUp, self).__init__(**kwargs)
+		self.cols = 1
+		self.popup = None
+		self.add_widget(Label(text='Some results not yet reported. Do you want to auto-report all as timeouts with 0VP?'))
+		
+		self.scoreRound = scoreRound
+		self.tournament = tournament
+		self.unreported = unreported
+
+		btn1 = Button(text='Yes')
+		btn1.bind(on_press=self.Done)
+		self.add_widget(btn1)
+
+		btn2 = Button(text='No')
+		btn2.bind(on_press=self.Cancel)
+		self.add_widget(btn2)
+	
+	def Cancel(self,instance):
+		if self.popup != None:
+			self.popup.dismiss()
+
+	def Done(self,instance):
+		for pair in self.unreported:
+			pairList = list(pair)
+			self.tournament.ReportResult(pairList[0],ResultType.TIMEOUT,0,0,self.scoreRound,False)
+			self.tournament.ReportResult(pairList[1],ResultType.TIMEOUT,0,0,self.scoreRound,False)
+		
+		if self.popup != None:
+			self.popup.dismiss()
+
 class ReportResultPopUp(GridLayout):
 	def __init__(self, tournament, pair, scoreRound, results,  **kwargs):
 		super(ReportResultPopUp, self).__init__(**kwargs)
@@ -236,10 +268,17 @@ class RoundPanel(GridLayout):
 			self.GenerateContent(True)
 			self.tournamentPanel.AddRoundPanel()
 		else: #some unreported so we need to pop-up and warn
-			pass
+			self.WarnIncompleteRound(unreported)
 
 	def RefreshReportedResults(self,instance):
 		self.GenerateContent(False)
+
+	def WarnIncompleteRound(self, unreported):
+		popUpContent = IncompleteRoundPopUp(self.tournament, unreported, self.scoreRound)
+		popup = Popup(title='WARNING: Round Incomplete', content=popUpContent, auto_dismiss=False)		
+		popUpContent.popup = popup
+		popup.bind(on_dismiss=self.RefreshReportedResults)
+		popup.open()
 
 	def ReportResult(self, instance):
 		popUpContent = ReportResultPopUp(self.tournament,instance.pair,instance.scoreRound, instance.results)
