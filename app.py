@@ -239,7 +239,7 @@ class RoundPanel(GridLayout):
 	def GenerateStandingsDisplay(self):
 		standings = self.tournament.CalcStandings()
 
-		headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]
+		headers=["PlayerId","Player Name","Tournament Points", "VP Diff","Round Result"]
 		vsGrid = GridLayout(cols=len(headers))
 
 		for header in headers:

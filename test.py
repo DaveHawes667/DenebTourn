@@ -60,7 +60,7 @@ def TestRun(players,actualRounds,playerInfo,tournamentInfo):
 	while i<=TEST_ROUNDS:
 		print("\nStandings at the end of round " + str(i-1) + "\n")
 		standings = tournamentInfo.CalcStandings()		
-		print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]))
+		print(tabulate(standings,headers=["PlayerId","Player Name","Tournament Points", "VP Diff","Last Result"]))
 		nxtRound,scoreRecordRound = tournamentInfo.GenerateNextRound()
 		printdbg("\n***** Round: "+str(i),1)
 		printdbg(tournamentInfo.GetVSStringForRound(nxtRound),1)

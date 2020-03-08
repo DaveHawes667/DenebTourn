@@ -61,6 +61,37 @@ class TournamentInfo:
 		
 		return missingPairs
 
+	def PlayerResultForActiveRound(self, playerId):
+		scoreRound = self.GetActiveScoreRecordRound()
+		activeRound = self.GetActiveRound()
+	
+		for pair in activeRound:
+			if playerId in pair:
+				if self.IsPairABye(pair):
+					return "Got a bye this round"
+				else:
+					bFoundResult,results=self.CheckResult(pair,scoreRound)
+					if bFoundResult:
+						otherSide = self.OtherSide(pair,playerId)
+						opponentName = self.GetPlayerName(otherSide)
+						result = ResultType[results[playerId]["result"]]
+						if result == ResultType.WIN:
+							return "Won against "+opponentName
+						elif result == ResultType.LOSE:
+							return "Lost to "+opponentName
+						elif result == ResultType.TIMEOUT:
+							return "Time-out against "+opponentName
+						else:
+							return "Unknown result???"
+
+		return "Unknown result"
+							
+
+	def OtherSide(self, pair, side):
+		for s in pair:
+			if s != side:
+				return s
+		return None
 
 	def CalcStandings(self):
 		standings = {player: {"PlayerId":player,"TP":0,"VPDiff":0} for player in self.players}
@@ -75,7 +106,7 @@ class TournamentInfo:
 
 		standingsTable = []
 		for player,standing in standings.items():
-			standingsTable.append([player[:4]+"...",self.playerInfo[player]["name"],standing["TP"],standing["VPDiff"]])
+			standingsTable.append([player[:4]+"...",self.playerInfo[player]["name"],standing["TP"],standing["VPDiff"],self.PlayerResultForActiveRound(player)])
 
 		#print("Standings table " + str(standingsTable))
 		standingsTable.sort( key = lambda s: (s[2],s[3]) )
