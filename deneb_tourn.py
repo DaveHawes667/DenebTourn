@@ -246,40 +246,41 @@ class TournamentInfo:
 		possibleRounds = self.FindPotentialRounds(allPairs)
 		possibleRounds = self.EliminateSecondByes(possibleRounds)
 
-		for round in possibleRounds:
-				printdbg("Potential Round...",3)
-				printdbg(round,3)
+		if len(possibleRounds) > 0:
+			for round in possibleRounds:
+					printdbg("Potential Round...",3)
+					printdbg(round,3)
 
-		maxPairSkillDisp = {}
-		cachePairSkillDispByPair = {}
-		for round in possibleRounds:		
-			maxPairSkillDisp[round] = self.CalcMaximumPairSkillDisparity(round,cachePairSkillDispByPair)
-		
-		roundWithMinSkillDispPair = min(maxPairSkillDisp, key=maxPairSkillDisp.get)
-		smallestMaxPairSkillDisp = math.ceil(maxPairSkillDisp[roundWithMinSkillDispPair])
-		smallestMaxPairSkillDisp = max(1,smallestMaxPairSkillDisp)
-		
-		printdbg("smallestMaxPairSkillDisp",3)
-		printdbg(smallestMaxPairSkillDisp,3)
-
-		if smallestMaxPairSkillDisp < float("inf"):
-			smallestMaxPairRounds = []
-
-			for round, maxPairDisp in maxPairSkillDisp.items():
-				if maxPairDisp <= smallestMaxPairSkillDisp:
-					smallestMaxPairRounds.append(round)
+			maxPairSkillDisp = {}
+			cachePairSkillDispByPair = {}
+			for round in possibleRounds:		
+				maxPairSkillDisp[round] = self.CalcMaximumPairSkillDisparity(round,cachePairSkillDispByPair)
 			
+			roundWithMinSkillDispPair = min(maxPairSkillDisp, key=maxPairSkillDisp.get)
+			smallestMaxPairSkillDisp = math.ceil(maxPairSkillDisp[roundWithMinSkillDispPair])
+			smallestMaxPairSkillDisp = max(1,smallestMaxPairSkillDisp)
+			
+			printdbg("smallestMaxPairSkillDisp",3)
+			printdbg(smallestMaxPairSkillDisp,3)
 
-			smallestMaxPairRounds.sort(key = lambda round: self.CalcTotalPairSkillDisparity(round,cachePairSkillDispByPair))
+			if smallestMaxPairSkillDisp < float("inf"):
+				smallestMaxPairRounds = []
 
-			for round in smallestMaxPairRounds:
-				printdbg("Small Max Pair Rounds...",3)
-				printdbg(round,3)
+				for round, maxPairDisp in maxPairSkillDisp.items():
+					if maxPairDisp <= smallestMaxPairSkillDisp:
+						smallestMaxPairRounds.append(round)
+				
 
-			return (smallestMaxPairRounds[0],scoreRecordRound)
+				smallestMaxPairRounds.sort(key = lambda round: self.CalcTotalPairSkillDisparity(round,cachePairSkillDispByPair))
 
-		print("ERROR: COULD NOT GENERATE A NEW ROUND!!!")
-		return None
+				for round in smallestMaxPairRounds:
+					printdbg("Small Max Pair Rounds...",3)
+					printdbg(round,3)
+
+				return (smallestMaxPairRounds[0],scoreRecordRound)	
+
+		printdbg("COULD NOT GENERATE A NEW ROUND!!!",1)
+		return (None,None)
 			
 
 	def PairInPreviousRound(self, pair):

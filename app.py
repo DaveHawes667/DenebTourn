@@ -201,10 +201,18 @@ class RoundPanel(GridLayout):
 	
 	def GenerateRound(self):		
 		self.round,self.scoreRound = self.tournament.GenerateNextRound()
-		self.tournament.actualRounds.append(self.round)		
-		self.roundList = self.tournament.GetVSForRoundAsList(self.round)
 		self.cols = 1
-		self.GenerateContent(False)
+		
+		if self.round == None: #no more legal rounds can be generated...
+			self.round = self.tournament.actualRounds[-1]
+			self.roundList = self.tournament.GetVSForRoundAsList(self.round)
+			self.GenerateContent(True,True)
+			return True
+		else:
+			self.tournament.actualRounds.append(self.round)		
+			self.roundList = self.tournament.GetVSForRoundAsList(self.round)
+			self.GenerateContent(False)
+			return False
 
 	def GenerateActiveRoundDisplay(self):
 		for pair,vs in self.roundList.items():			
@@ -236,27 +244,31 @@ class RoundPanel(GridLayout):
 		btn.bind(on_press=self.CloseRound)		
 		self.add_widget(btn)
 
-	def GenerateStandingsDisplay(self):
+	def GenerateStandingsDisplay(self, bFinalStandings):
 		standings = self.tournament.CalcStandings()
 
-		headers=["PlayerId","Player Name","Tournament Points", "VP Diff","Round Result"]
+		headers=["PlayerId","Player Name","Tournament Points", "VP Diff"]
+		if not bFinalStandings:
+			headers.append("Round Result")
 		vsGrid = GridLayout(cols=len(headers))
 
 		for header in headers:
 			vsGrid.add_widget(Label(text = header))
 
 		for player in standings:
+			if bFinalStandings:
+				player.pop()
 			for entry in player:
 				vsGrid.add_widget(Label(text = str(entry)))
 
 
 		self.add_widget(vsGrid)
 
-	def GenerateContent(self, bShowStandings):		
+	def GenerateContent(self, bShowStandings, bFinalStandings = False):		
 		self.clear_widgets()
 
 		if bShowStandings:
-			self.GenerateStandingsDisplay()
+			self.GenerateStandingsDisplay(bFinalStandings)
 		else:
 			self.GenerateActiveRoundDisplay()
 
@@ -301,9 +313,12 @@ class TournamentPanelContent(GridLayout):
 	
 	def AddRoundPanel(self):
 		roundPanel = RoundPanel(self.tournament,self)
-		roundPanel.GenerateRound()
+		bFinalStandings = roundPanel.GenerateRound()
 		tp = TabbedPanelItem()
-		tp.text = "Round " + str(len(self.tournament.actualRounds))
+		if bFinalStandings:
+			tp.text = "Final Standings"
+		else:
+			tp.text = "Round " + str(len(self.tournament.actualRounds))
 		tp.add_widget(roundPanel)
 		self.tabPanel.add_widget(tp)
 
